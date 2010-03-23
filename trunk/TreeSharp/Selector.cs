@@ -1,33 +1,128 @@
-﻿using System;
+﻿#region License
+
+//     A simplistic Behavior Tree implementation in C#
+//     Copyright (C) 2010  ApocDev apocdev@gmail.com
+// 
+//     This file is part of TreeSharp.
+// 
+//     TreeSharp is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     TreeSharp is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+
+#endregion
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace TreeSharp
 {
     /// <summary>
-    /// The base selector class. This will attempt to execute all branches of logic, until one succeeds. 
-    /// This composite will fail only if all branches fail as well.
+    ///   The base selector class. This will attempt to execute all branches of logic, until one succeeds. 
+    ///   This composite will fail only if all branches fail as well.
     /// </summary>
-    public abstract class Selector : Composite
+    public abstract class Selector : GroupComposite
     {
+        public Selector(params Composite[] children) : base(children)
+        {
+        }
+
+        public abstract override IEnumerable<RunStatus> Execute(object context);
     }
 
     /// <summary>
-    /// Will execute each branch of logic by priority, until one succeeds. This composite
-    /// will fail only if all branches fail as well.
+    ///   Will execute each branch of logic in order, until one succeeds. This composite
+    ///   will fail only if all branches fail as well.
     /// </summary>
     public class PrioritySelector : Selector
     {
-        
+        public PrioritySelector(params Composite[] children) : base(children)
+        {
+        }
+
+        public override IEnumerable<RunStatus> Execute(object context)
+        {
+            lock (Locker)
+            {
+                // Keep in mind; we ARE an enumerator here. So we do execute each child in tandem.
+                foreach (Composite node in Children)
+                {
+                    // All behaviors are 'Decorators' by default. This just makes it simple.
+                    // and allows us to not have another class that is nothing but a Decorator : Behavior
+                    // Though; it may be a good idea in the future to add.
+                    // Keep in mind!!!
+                    // Start is called EVERY time we check a behavior! REGARDLESS OF IT'S RETURN VALUE!
+                    // This makes sure we don't end up with a corrupted state that always returns 'Running' 
+                    // when it's actualled 'Success' or 'Failed'
+                    node.Start(context);
+                    // If the current node is still running; return so. Don't 'break' the enumerator
+                    while (node.Tick(context) == RunStatus.Running)
+                    {
+                        Selection = node;
+                        yield return RunStatus.Running;
+                    }
+
+                    // Clear the selection... since we don't have one! Duh.
+                    Selection = null;
+                    // Call Stop to allow the node to cleanup anything. Since we don't need it anymore.
+                    node.Stop(context);
+                    // If it succeeded (since we're a selector) we return that this GroupNode
+                    // succeeded in executing.
+                    if (node.LastStatus == RunStatus.Success)
+                    {
+                        yield return RunStatus.Success;
+                        yield break;
+                    }
+
+                    // Still running, so continue on!
+                    yield return RunStatus.Running;
+                }
+                // We ran out of children, and none succeeded. Return failed.
+                yield return RunStatus.Failure;
+            }
+        }
+    }
+
+    public class ProbabilitySelection
+    {
+        public Composite Branch;
+        public double ChanceToExecute;
+
+        public ProbabilitySelection(Composite branch, double chanceToExecute)
+        {
+            Branch = branch;
+            ChanceToExecute = chanceToExecute;
+        }
     }
 
     /// <summary>
-    /// Will execute random branches of logic, until one succeeds. This composite
-    /// will fail only if all branches fail as well.
+    ///   Will execute random branches of logic, until one succeeds. This composite
+    ///   will fail only if all branches fail as well.
     /// </summary>
     public class ProbabilitySelector : Selector
     {
-        
+        public ProbabilitySelector(params ProbabilitySelection[] children) : base(children.Select(c => c.Branch).ToArray())
+        {
+            PossibleBranches = children.OrderBy(c => c.ChanceToExecute).ToArray();
+            Randomizer = new Random();
+        }
+
+        private ProbabilitySelection[] PossibleBranches { get; set; }
+
+        protected Random Randomizer { get; private set; }
+
+        public override IEnumerable<RunStatus> Execute(object context)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
