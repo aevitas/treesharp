@@ -37,15 +37,19 @@ namespace TreeSharp
         protected Composite()
         {
             Guid = Guid.NewGuid();
+            CleanupHandlers = new Stack<CleanupHandler>();
         }
 
         public RunStatus? LastStatus { get; set; }
 
+        protected ContextChangeHandler ContextChanger { get; set; }
         protected Stack<CleanupHandler> CleanupHandlers { get; set; }
 
+        /// <summary>
+        /// Simply an identifier to make sure each composite is 'unique'.
+        /// Useful for XML declaration parsing.
+        /// </summary>
         protected Guid Guid { get; set; }
-
-        public bool IsRunning { get { return _current != null && LastStatus.HasValue && LastStatus.Value == RunStatus.Running; } }
 
         #region IEquatable<Composite> Members
 
@@ -81,9 +85,9 @@ namespace TreeSharp
                 return false;
             if (ReferenceEquals(this, obj))
                 return true;
-            if (obj.GetType() != typeof (Composite))
+            if (obj.GetType() != typeof(Composite))
                 return false;
-            return Equals((Composite) obj);
+            return Equals((Composite)obj);
         }
 
         /// <summary>
@@ -110,7 +114,7 @@ namespace TreeSharp
 
         public abstract IEnumerable<RunStatus> Execute(object context);
 
-        public virtual RunStatus Tick(object context)
+        public RunStatus Tick(object context)
         {
             lock (Locker)
             {
@@ -171,17 +175,15 @@ namespace TreeSharp
 
         protected abstract class CleanupHandler : IDisposable
         {
-            private bool _disposed;
-
             protected CleanupHandler(Composite owner, object context)
             {
                 Owner = owner;
                 Context = context;
             }
 
-            public Composite Owner { get; private set; }
-            public object Context { get; private set; }
-            public bool IsDisposed { get { return _disposed; } }
+            protected Composite Owner { get; set; }
+            private object Context { get; set; }
+            private bool IsDisposed { get; set; }
 
             #region IDisposable Members
 
@@ -191,7 +193,7 @@ namespace TreeSharp
                 {
                     lock (Locker)
                     {
-                        _disposed = true;
+                        IsDisposed = true;
                         DoCleanup(Context);
                     }
                 }
@@ -226,7 +228,8 @@ namespace TreeSharp
 
         protected class ChildrenCleanupHandler : CleanupHandler
         {
-            public ChildrenCleanupHandler(GroupComposite owner, object context) : base(owner, context)
+            public ChildrenCleanupHandler(GroupComposite owner, object context)
+                : base(owner, context)
             {
             }
 

@@ -45,8 +45,14 @@ namespace TreeSharp
     /// </summary>
     public class PrioritySelector : Selector
     {
-        public PrioritySelector(params Composite[] children) : base(children)
+        public PrioritySelector(params Composite[] children)
+            : base(children)
         {
+        }
+        public PrioritySelector(ContextChangeHandler contextChange, params Composite[] children)
+            : this(children)
+        {
+            ContextChanger = contextChange;
         }
 
         public override IEnumerable<RunStatus> Execute(object context)
@@ -83,11 +89,14 @@ namespace TreeSharp
                         yield break;
                     }
 
+                    // XXX - Removed. This would make us use an extra 'tick' just to get to the next child composite.
                     // Still running, so continue on!
-                    yield return RunStatus.Running;
+                    //yield return RunStatus.Running;
                 }
                 // We ran out of children, and none succeeded. Return failed.
                 yield return RunStatus.Failure;
+                // Make sure we tell our parent composite, that we're finished.
+                yield break;
             }
         }
     }
