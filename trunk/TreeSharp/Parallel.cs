@@ -20,9 +20,19 @@
 
 #endregion
 
+using System;
+using System.Collections.Generic;
+
 namespace TreeSharp
 {
+    /// <summary>
+    /// This class is not yet implemented!
+    /// </summary>
     internal class Parallel : Composite
     {
+        public override IEnumerable<RunStatus> Execute(object context)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
