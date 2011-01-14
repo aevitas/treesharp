@@ -1,22 +1,22 @@
 ﻿#region License
 
-//     A simplistic Behavior Tree implementation in C#
-//     Copyright (C) 2010  ApocDev apocdev@gmail.com
+// A simplistic Behavior Tree implementation in C#
+// Copyright (C) 2010-2011 ApocDev apocdev@gmail.com
 // 
-//     This file is part of TreeSharp.
+// This file is part of TreeSharp
 // 
-//     TreeSharp is free software: you can redistribute it and/or modify
-//     it under the terms of the GNU General Public License as published by
-//     the Free Software Foundation, either version 3 of the License, or
-//     (at your option) any later version.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 // 
-//     TreeSharp is distributed in the hope that it will be useful,
-//     but WITHOUT ANY WARRANTY; without even the implied warranty of
-//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//     GNU General Public License for more details.
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 // 
-//     You should have received a copy of the GNU General Public License
-//     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #endregion
 
@@ -32,6 +32,7 @@ namespace TreeSharp
     public abstract class Composite : IEquatable<Composite>
     {
         protected static readonly object Locker = new object();
+
         private IEnumerator<RunStatus> _current;
 
         protected Composite()
@@ -43,11 +44,14 @@ namespace TreeSharp
         public RunStatus? LastStatus { get; set; }
 
         protected ContextChangeHandler ContextChanger { get; set; }
+
         protected Stack<CleanupHandler> CleanupHandlers { get; set; }
 
+        public Composite Parent { get; set; }
+
         /// <summary>
-        /// Simply an identifier to make sure each composite is 'unique'.
-        /// Useful for XML declaration parsing.
+        ///   Simply an identifier to make sure each composite is 'unique'.
+        ///   Useful for XML declaration parsing.
         /// </summary>
         protected Guid Guid { get; set; }
 
@@ -63,9 +67,13 @@ namespace TreeSharp
         public bool Equals(Composite other)
         {
             if (ReferenceEquals(null, other))
+            {
                 return false;
+            }
             if (ReferenceEquals(this, other))
+            {
                 return true;
+            }
             return other.Guid.Equals(Guid);
         }
 
@@ -82,11 +90,17 @@ namespace TreeSharp
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj))
+            {
                 return false;
+            }
             if (ReferenceEquals(this, obj))
+            {
                 return true;
+            }
             if (obj.GetType() != typeof(Composite))
+            {
                 return false;
+            }
             return Equals((Composite)obj);
         }
 
@@ -119,18 +133,26 @@ namespace TreeSharp
             lock (Locker)
             {
                 if (LastStatus.HasValue && LastStatus != RunStatus.Running)
+                {
                     return LastStatus.Value;
+                }
                 if (_current == null)
                 {
                     throw new ApplicationException("Cannot run Tick before running Start first!");
                 }
                 if (_current.MoveNext())
+                {
                     LastStatus = _current.Current;
+                }
                 else
+                {
                     throw new ApplicationException("Nothing to run? Somethings gone terribly, terribly wrong!");
+                }
 
                 if (LastStatus != RunStatus.Running)
+                {
                     Stop(context);
+                }
 
                 return LastStatus.Value;
             }
@@ -182,7 +204,9 @@ namespace TreeSharp
             }
 
             protected Composite Owner { get; set; }
+
             private object Context { get; set; }
+
             private bool IsDisposed { get; set; }
 
             #region IDisposable Members
@@ -202,44 +226,6 @@ namespace TreeSharp
             #endregion
 
             protected abstract void DoCleanup(object context);
-        }
-
-        #endregion
-    }
-
-    public abstract class GroupComposite : Composite
-    {
-        protected GroupComposite(params Composite[] children)
-        {
-            Children = new List<Composite>(children);
-        }
-
-        public List<Composite> Children { get; set; }
-
-        public Composite Selection { get; protected set; }
-
-        public override void Start(object context)
-        {
-            CleanupHandlers.Push(new ChildrenCleanupHandler(this, context));
-            base.Start(context);
-        }
-
-        #region Nested type: ChildrenCleanupHandler
-
-        protected class ChildrenCleanupHandler : CleanupHandler
-        {
-            public ChildrenCleanupHandler(GroupComposite owner, object context)
-                : base(owner, context)
-            {
-            }
-
-            protected override void DoCleanup(object context)
-            {
-                foreach (Composite composite in (Owner as GroupComposite).Children)
-                {
-                    composite.Stop(context);
-                }
-            }
         }
 
         #endregion

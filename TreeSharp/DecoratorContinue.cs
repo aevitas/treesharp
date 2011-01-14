@@ -20,57 +20,49 @@
 
 #endregion
 
-using System;
 using System.Collections.Generic;
 
 namespace TreeSharp
 {
-    public delegate bool CanRunDecoratorDelegate(object context);
-
-    public class Decorator : GroupComposite
+    /// <summary>
+    ///   A decorator that allows you to execute code only if some condition is met. It does not 'break' the current
+    ///   tree if the condition fails, or children fail.
+    /// 		 
+    ///   This is useful for "if I need to, go ahead, otherwise, ignore" in sequences.
+    /// 		 
+    ///   It can be thought of as an optional execution.
+    /// </summary>
+    /// <remarks>
+    ///   Created 1/13/2011.
+    /// </remarks>
+    public class DecoratorContinue : Decorator
     {
-        public Decorator(CanRunDecoratorDelegate runFunc, Composite child)
-            : this(child)
+        public DecoratorContinue(CanRunDecoratorDelegate func, Composite decorated)
+            : base(func, decorated)
         {
-            Runner = runFunc;
         }
 
-        public Decorator(Composite child)
+        public DecoratorContinue(Composite child)
             : base(child)
         {
         }
 
-        protected CanRunDecoratorDelegate Runner { get; private set; }
-
-        public Composite DecoratedChild { get { return Children[0]; } }
-
-        protected virtual bool CanRun(object context)
+        private RunStatus GetContinuationStatus()
         {
-            return true;
-        }
-
-        public override void Start(object context)
-        {
-            if (Children.Count != 1)
+            // Selectors run until we fail.
+            if (Parent is Selector)
             {
-                throw new ApplicationException("Decorators must have only one child.");
+                return RunStatus.Failure;
             }
-            base.Start(context);
+            // Everything else, we want to 'succeed'.
+            return RunStatus.Success;
         }
 
         public override IEnumerable<RunStatus> Execute(object context)
         {
-            if (Runner != null)
+            if (!CanRun(context))
             {
-                if (!Runner(context))
-                {
-                    yield return RunStatus.Failure;
-                    yield break;
-                }
-            }
-            else if (!CanRun(context))
-            {
-                yield return RunStatus.Failure;
+                yield return RunStatus.Success;
                 yield break;
             }
 
@@ -83,10 +75,12 @@ namespace TreeSharp
             DecoratedChild.Stop(context);
             if (DecoratedChild.LastStatus == RunStatus.Failure)
             {
-                yield return RunStatus.Failure;
+                yield return GetContinuationStatus();
                 yield break;
             }
 
+            // Note: if the condition was met, and we succeeded in running the children, we HAVE to tell our parent
+            // that we've ran successfully, or we'll skip down to the next child, regardless of whether we ran, or not.
             yield return RunStatus.Success;
             yield break;
         }

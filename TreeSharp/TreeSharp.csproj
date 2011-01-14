@@ -47,12 +47,16 @@
     <Compile Include="Action.cs" />
     <Compile Include="Composite.cs" />
     <Compile Include="Decorator.cs" />
+    <Compile Include="DecoratorContinue.cs" />
+    <Compile Include="GroupComposite.cs" />
     <Compile Include="Parallel.cs" />
+    <Compile Include="PrioritySelector.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RunStatus.cs" />
     <Compile Include="Selector.cs" />
     <Compile Include="Sequence.cs" />
     <Compile Include="Switch.cs" />
+    <Compile Include="Wait.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
