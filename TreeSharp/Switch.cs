@@ -85,6 +85,9 @@ namespace TreeSharp
                 if (arg != null)
                 {
                     Selection = arg.Branch;
+
+                    // BUGFIX (http://code.google.com/p/treesharp/issues/detail?id=3)
+                    return;
                 }
             }
 
